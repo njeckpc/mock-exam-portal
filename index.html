@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strict Mock Examination Portal</title>
+  
+  <!-- Canvas Confetti Library for the Explosive Blast -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    /* -----------------------------
+       MOBILE-FIRST RESPONSIVE DESIGN
+       ----------------------------- */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      overflow-x: hidden;
+      background-color: #f4f6f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #333;
+    }
+
+    /* Dynamic container adjusting cleanly across mobile and desktop viewports */
+    .app-container {
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    @media (min-width: 480px) {
+      header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+    }
+
+    .controls-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    select, .btn {
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background-color: #fff;
+      cursor: pointer;
+    }
+
+    .btn-submit {
+      background-color: #dc2626;
+      color: white;
+      border: none;
+    }
+
+    .btn-submit:hover {
+      background-color: #b91c1c;
+    }
+
+    /* Strict Exam Warning Stats Bar */
+    .status-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      background-color: #1e293b;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .timer-alert {
+      color: #ef4444;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    /* Question and Options Area */
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+
+    .question-block {
+      margin-bottom: 24px;
+    }
+
+    .question-meta {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    .question-text {
+      font-size: 17px;
+      line-height: 1.5;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    /* Stack options vertically cleanly for mobile targets */
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .option-button {
+      width: 100%;
+      min-height: 52px; /* Ergonomic touch-target size */
+      padding: 14px 18px;
+      font-size: 15px;
+      text-align: left;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      background-color: #fff;
+      cursor: pointer;
+      box-sizing: border-box;
+      word-wrap: break-word; /* Prevents overflow from ultra-long strings */
+      transition: all 0.2s ease;
+    }
+
+    .option-button:hover {
+      background-color: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    /* Selection feedback (No hints of correctness during exam) */
+    .option-button.selected {
+      border-color: #2563eb;
+      background-color: #eff6ff;
+      color: #1e40af;
+      font-weight: 600;
+    }
+
+    /* Screen State Modifiers */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Results Screen styling */
+    .result-view {
+      text-align: center;
+      padding: 30px 20px;
+    }
+
+    .result-badge {
+      font-size: 24px;
+      font-weight: 800;
+      padding: 12px 24px;
+      border-radius: 50px;
+      display: inline-block;
+      margin-bottom: 16px;
+    }
+
+    .badge-pass { background-color: #dcfce7; color: #166534; }
+    .badge-fail { background-color: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <header>
+      <h2>Mock Exam Engine</h2>
+      <div class="controls-group">
+        <!-- English Translation Toggle -->
+        <label for="langSelect" style="font-size: 13px; font-weight: bold;">Lang:</label>
+        <select id="langSelect" onchange="changeLanguage(this.value)">
+          <option value="en">English</option>
+          <option value="local">Local Language</option>
+        </select>
+        <button id="submitBtn" class="btn btn-submit" onclick="submitExam()">Submit Exam</button>
+      </div>
+    </header>
+
+    <!-- Strict Stats Indicator Frame -->
+    <div class="status-bar">
+      <div>Passing Limit: <span id="passingCutoff">80%</span></div>
+      <div id="timerContainer">Time Remaining: <span id="clock">20:00</span></div>
+    </div>
+
+    <!-- Active Test Viewport -->
+    <main id="examViewport">
+      <!-- Questions will inject cleanly inside here dynamically -->
+    </main>
+
+    <!-- Post-Evaluation Viewport -->
+    <section id="resultViewport" class="card hidden result-view">
+      <div id="resultBadge" class="result-badge"></div>
+      <p id="resultDetails" style="font-size: 16px; color: #475569;"></p>
+      <button class="btn" onclick="resetExam()" style="background-color: #0f172a; color: white; margin-top: 10px;">Try Again</button>
+    </section>
+
+  </div>
+
+  <script>
+    /* ------------------------------------
+       IMPROVED DATA SCHEMA & TRANSLATIONS
+       ------------------------------------ */
+    const questionBank = [
+      {
+        "id": "q_001",
+        "category": "Regulatory Standards",
+        "translations": {
+          "en": {
+            "question": "What is the maximum legal blood alcohol concentration (BAC) allowed for commercial motor vehicle drivers?",
+            "options": ["0.00%", "0.02%", "0.04%", "0.08%"]
+          },
+          "local": {
+            "question": "Was ist die gesetzlich zulässige maximale Blutalkoholkonzentration (BAK) für Berufskraftfahrer?",
+            "options": ["0,00%", "0,02%", "0,04%", "0,08%"]
+          }
+        },
+        "correct_index": 2
+      },
+      {
+        "id": "q_002",
+        "category": "Operational Safety",
+        "translations": {
+          "en": {
+            "question": "When approaching a sharp curve at high speed, when should your braking adjustments safely begin?",
+            "options": [
+              "Before entering the geometry of the curve", 
+              "Precisely at the center apex of the curve", 
+              "Gradually balanced throughout the curve iteration", 
+              "Strictly if the steering components initiate standard sliding"
+            ]
+          },
+          "local": {
+            "question": "Wann sollten Sie die Bremsen betätigen, wenn Sie sich einer scharfen Kurve mit hoher Geschwindigkeit nähern?",
+            "options": [
+              "Vor dem Einfahren in die Kurve", 
+              "Genau am Scheitelpunkt der Kurve", 
+              "Schrittweise während der gesamten Kurvenfahrt", 
+              "Nur wenn das Fahrzeug ausbricht"
+            ]
+          }
+        },
+        "correct_index": 0
+      },
+      {
+        "id": "q_003",
+        "category": "Emergency Procedures",
+        "translations": {
+          "en": {
+            "question": "If your accelerator pedal gets stuck down while driving fast, what is the safest immediate action?",
+            "options": [
+              "Turn off the engine completely to kill performance",
+              "Shift to Neutral, apply steady brakes, and look for a safe exit",
+              "Pump the accelerator rapidly while pulling the handbrake",
+              "Downshift forcefully into first gear as quickly as possible"
+            ]
+          },
+          "local": {
+            "question": "Wenn Ihr Gaspedal während der Fahrt klemmt, welches ist die sicherste sofortige Maßnahme?",
+            "options": [
+              "Schalten Sie den Motor komplett aus",
+              "In den Leerlauf schalten, konstant bremsen und Ausweg suchen",
+              "Das Gaspedal schnell pumpen und die Handbremse ziehen",
+              "So schnell wie möglich kräftig in den ersten Gang herunterschalten"
+            ]
+          }
+        },
+        "correct_index": 1
+      }
+    ];
+
+    /* -------------------------
+       STRICT ENGINE STATE LOGIC
+       ------------------------- */
+    const EXAM_SETTINGS = {
+      timeLimitSeconds: 120, // 2 Minutes for standard testing run speed
+      passingPercentage: 80
+    };
+
+    let currentLanguage = "en";
+    let examTimerInterval = null;
+    let secondsLeft = EXAM_SETTINGS.timeLimitSeconds;
+    let selectedAnswers = {}; // Map of { questionId: selectedIndex }
+
+    // Kickoff Lifecycle Engine
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("passingCutoff").innerText = `${EXAM_SETTINGS.passingPercentage}%`;
+      initializeExam();
+    });
+
+    function initializeExam() {
+      secondsLeft = EXAM_SETTINGS.timeLimitSeconds;
+      selectedAnswers = {};
+      document.getElementById("examViewport").classList.remove("hidden");
+      document.getElementById("submitBtn").classList.remove("hidden");
+      document.getElementById("resultViewport").classList.add("hidden");
+      
+      renderQuestions();
+      startStrictTimer();
+    }
+
+    function startStrictTimer() {
+      if (examTimerInterval) clearInterval(examTimerInterval);
+      
+      updateTimerUI();
+      examTimerInterval = setInterval(() => {
+        secondsLeft--;
+        updateTimerUI();
+
+        if (secondsLeft <= 50) {
+          document.getElementById("timerContainer").classList.add("timer-alert");
+        }
+
+        if (secondsLeft <= 0) {
+          clearInterval(examTimerInterval);
+          alert("Time Expired! Your test is automatically processing for grading.");
+          submitExam();
+        }
+      }, 1000);
+    }
+
+    function updateTimerUI() {
+      const minutes = Math.floor(secondsLeft / 60);
+      const seconds = secondsLeft % 60;
+      document.getElementById("clock").innerText = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function changeLanguage(langCode) {
+      currentLanguage = langCode;
+      renderQuestions();
+    }
+
+    function renderQuestions() {
+      const container = document.getElementById("examViewport");
+      container.innerHTML = "";
+
+      questionBank.forEach((q, qIndex) => {
+        const langData = q.translations[currentLanguage] || q.translations["en"];
+        
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const meta = document.createElement("div");
+        meta.className = "question-meta";
+        meta.innerText = `${q.category} • Question ${qIndex + 1}`;
+        card.appendChild(meta);
+
+        const text = document.createElement("p");
+        text.className = "question-text";
+        text.innerText = langData.question;
+        card.appendChild(text);
+
+        const list = document.createElement("div");
+        list.className = "options-list";
+        list.style.marginTop = "16px";
+
+        langData.options.forEach((opt, optIndex) => {
+          const btn = document.createElement("button");
+          btn.className = "option-button";
+          if (selectedAnswers[q.id] === optIndex) {
+            btn.classList.add("selected");
+          }
+          btn.innerText = opt;
+          
+          // Strict Input Engine: Simply saves input, offers zero immediate evaluation green/red colors
+          btn.onclick = () => {
+            selectedAnswers[q.id] = optIndex;
+            // Clear selections inside this specific question block hierarchy
+            Array.from(list.children).forEach(child => child.classList.remove("selected"));
+            btn.classList.add("selected");
+          };
+
+          list.appendChild(btn);
+        });
+
+        card.appendChild(list);
+        container.appendChild(card);
+      });
+    }
+
+    function submitExam() {
+      clearInterval(examTimerInterval);
+      
+      let correctMatches = 0;
+      const totalQuestions = questionBank.length;
+
+      questionBank.forEach(q => {
+        if (selectedAnswers[q.id] === q.correct_index) {
+          correctMatches++;
+        }
+      });
+
+      const userScorePercent = Math.round((correctMatches / totalQuestions) * 100);
+      const passed = userScorePercent >= EXAM_SETTINGS.passingPercentage;
+
+      // Swap viewports to locked display mode
+      document.getElementById("examViewport").classList.add("hidden");
+      document.getElementById("submitBtn").classList.add("hidden");
+      
+      const badge = document.getElementById("resultBadge");
+      const details = document.getElementById("resultDetails");
+
+      if (passed) {
+        badge.innerText = "EXAM PASSED";
+        badge.className = "result-badge badge-pass";
+        details.innerText = `Excellent execution. Final Score: ${userScorePercent}% (Required minimum: ${EXAM_SETTINGS.passingPercentage}%)`;
+        triggerExplosiveConfetti();
+      } else {
+        badge.innerText = "EXAM FAILED";
+        badge.className = "result-badge badge-fail";
+        details.innerText = `Insufficient Score: ${userScorePercent}%. Minimum parameter require: ${EXAM_SETTINGS.passingPercentage}%. Try resetting the exam session to learn instructions.`;
+      }
+
+      document.getElementById("resultViewport").classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetExam() {
+      document.getElementById("timerContainer").classList.remove("timer-alert");
+      initializeExam();
+    }
+
+    /* -------------------------------------
+       HIGH-ENERGY EXPLOSIVE CONFETTI ENGINE
+       ------------------------------------- */
+    function triggerExplosiveConfetti() {
+      // Ensure the canvas-confetti script executed successfully
+      if (typeof confetti !== 'function') return;
+
+      const duration = 3 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 65, spread: 360, ticks: 70, zIndex: 2000 };
+
+      function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 140 * (timeLeft / duration);
+        
+        // Multi-angle explosive burst from the lower left and right coordinates
+        confetti(Object.assign({}, defaults, { 
+          particleCount, 
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } 
+        }));
+        confetti(Object.assign({}, defaults, { 
+          particleCount, 
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } 
+        }));
+      }, 200);
+    }
+  </script>
+</body>
+</html>
